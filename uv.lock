@@ -91,15 +91,7 @@ wheels = [
 [[package]]
 name = "miniviki-mca"
 version = "0.1.0"
-source = { editable = "../mca" }
-
-[package.metadata]
-
-[package.metadata.requires-dev]
-dev = [
-    { name = "pytest", specifier = ">=8.3" },
-    { name = "ruff", specifier = ">=0.8" },
-]
+source = { git = "https://github.com/ityeri/mca.git?rev=develop#a0610e1b03e5f1a44ae91f2e79cdad30ab57fe2d" }
 
 [[package]]
 name = "miniviki-mcasdk"
@@ -121,7 +113,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "httpx", specifier = ">=0.28" },
-    { name = "miniviki-mca", editable = "../mca" },
+    { name = "miniviki-mca", git = "https://github.com/ityeri/mca.git?rev=develop" },
 ]
 
 [package.metadata.requires-dev]
