@@ -1,9 +1,11 @@
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass, field
+from typing import Any
 
 from miniviki.mca import (
     MESSAGE,
     ClientCapability,
+    ClientRequest,
     ClientTool,
     ContextHandle,
     ContextInit,
@@ -12,6 +14,9 @@ from miniviki.mca import (
     Transport,
     Turn,
 )
+
+# What a client registers for a tool it declared: arguments in, text out.
+type ClientToolHandler = Callable[[dict[str, Any]], Awaitable[str]]
 
 
 @dataclass(slots=True)
@@ -25,6 +30,7 @@ class MiniVikiClient:
     transport: Transport
     capabilities: ClientCapability = field(default_factory=ClientCapability)
     tools: tuple[ClientTool, ...] = ()
+    handlers: dict[str, ClientToolHandler] = field(default_factory=dict)
     handle: ContextHandle | None = None
     last_seq: int = -1
     max_events: int = 2048
@@ -58,6 +64,28 @@ class MiniVikiClient:
     async def deny(self, call_id: str) -> Turn:
         return await self._decide(call_id, "denied")
 
+    async def serve(self, request: ClientRequest) -> Turn:
+        """Run one of this client's own tools and hand the result back.
+
+        A request with no registered handler is answered as an error rather than
+        left alone: the run is parked on this, so silence would wedge the context.
+        """
+        handler = self.handlers.get(request.client_tool)
+        if handler is None:
+            return await self.decline(
+                request,
+                f"error: this client registered no handler for {request.client_tool!r}"
+            )
+        try:
+            content = await handler(request.arguments)
+        except Exception as error:
+            content = f"error: {request.tool} failed: {type(error).__name__}: {error}"
+        return await self._report(request, content)
+
+    async def decline(self, request: ClientRequest, reason: str) -> Turn:
+        """Answer without running anything, so the model learns why it did not happen."""
+        return await self._report(request, reason)
+
     async def set_tools(self, tools: list[ClientTool]) -> ContextHandle:
         handle = self._require_handle()
         self.tools = tuple(tools)
@@ -72,6 +100,11 @@ class MiniVikiClient:
 
     async def aclose(self) -> None:
         await self.transport.aclose()
+
+    async def _report(self, request: ClientRequest, content: str) -> Turn:
+        handle = self._require_handle()
+        await self.transport.report_tool_result(handle.id, request.call_id, content)
+        return await self._collect("", self.max_events)
 
     async def _decide(self, call_id: str, decision: str) -> Turn:
         handle = self._require_handle()

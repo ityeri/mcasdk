@@ -1,4 +1,4 @@
-from .client import MiniVikiClient
+from .client import ClientToolHandler, MiniVikiClient
 from .transport import HttpTransport
 
-__all__ = ["HttpTransport", "MiniVikiClient"]
+__all__ = ["ClientToolHandler", "HttpTransport", "MiniVikiClient"]

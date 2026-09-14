@@ -66,6 +66,18 @@ class HttpTransport:
             {"call_id": call_id, "decision": decision}
         )
 
+    async def report_tool_result(
+        self,
+        context_id: str,
+        call_id: str,
+        content: str
+    ) -> dict[str, Any]:
+        return await self._json(
+            "POST",
+            f"/contexts/{context_id}/tool_results",
+            {"call_id": call_id, "content": content}
+        )
+
     async def update_tools(self, context_id: str, tools: list[ClientTool]) -> dict[str, Any]:
         return await self._json(
             "POST",
